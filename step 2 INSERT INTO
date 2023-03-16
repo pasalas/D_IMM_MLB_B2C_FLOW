@@ -1,0 +1,327 @@
+-- COMIENZO DE QUERY
+INSERT INTO `meli-bi-data.SBOX_MKTVIS.D_IMM_MLB_B2C_FLOW`
+
+WITH 
+
+LISTADO_ENCENDIDO AS(
+SELECT DISTINCT
+  A.CUS_CUST_ID_BORROWER AS cus_cust_id
+, B.CUS_NICKNAME
+,CRD_PROP_CREATION_DATE_ID
+
+FROM `meli-bi-data.WHOWNER.BT_MP_CREDITS_PROPOSAL_DETAIL` AS A 
+
+LEFT JOIN`meli-bi-data.WHOWNER.LK_CUS_CUSTOMERS_DATA` AS B
+ON A.CUS_CUST_ID_BORROWER = B.CUS_CUST_ID AND B.SIT_SITE_ID_CUS = 'MLB'
+WHERE A.CRD_PRODUCT_ID= 'CON_MLB_2'																											 
+AND A.CRD_PROP_STATUS_ID in ('APPROVED','PAUSED', 'CLOSED')
+)
+
+,
+
+--VISITAS A LA VIP, SOLO USUARIOS B2C
+VISITAS_VIP as (
+
+    select
+      CAST(user_timestamp AS TIMESTAMP) AS user_timestamp
+    , cast( ds as date) AS date_str
+    , tracks.path AS path
+    , usr.uid AS uid
+    , REGEXP_REPLACE(json_extract(tracks.event_data, "$.bank"),'"','') AS bank_id
+    , tracks.usr.user_id AS cus_cust_id
+    , JSON_EXTRACT(event_data, '$.seller_id') AS cus_cust_id_sel
+    , REGEXP_SUBSTR(JSON_EXTRACT(event_data, '$.item_id'), '[0-9]+')  AS ite_item_id
+    , event_data AS event_data
+    , platform.fragment AS fragment
+    , platform.http.http_referer AS http_referer
+    , (SELECT MAX(platform.http.utm.map[SAFE_OFFSET(0)].value) FROM UNNEST(tracks.platform.http.utm.map) AS ITE_ITEM_ATTRIBUTES WHERE platform.http.utm.map[SAFE_OFFSET(0)].key = 'utm_campaign') AS utm_campaign
+    , device.platform AS device_platform
+    , CRD_PROP_CREATION_DATE_ID
+    , geo
+    , platform
+
+
+    from `meli-bi-data.MELIDATA.TRACKS` as tracks
+    inner join  listado_encendido on  CAST(listado_encendido.cus_cust_id AS STRING) = tracks.usr.user_id
+    where tracks.ds >= <FECHA_DESDE>
+    and tracks.site = "MLB"
+    and tracks.path = "/vip"
+    and tracks.type = "view"
+    AND 'test_user' NOT IN UNNEST(usr.user_tags) 
+    and tracks.usr.user_id is not null --> Usuario loggueado
+    and tracks.application.business = 'mercadolibre' --> Solamente accesos a la VIP de mercadolibre
+    and tracks.device.platform in ('/web/desktop', '/web/mobile', '/mobile/ios', '/mobile/android') --> Plataformas en las que queremos ver el comportamiento
+    and JSON_EXTRACT(event_data, '$.vertical') = '"motors"'
+    and json_extract(tracks.event_data, "$.available_consumer_credit") = 'true' --> Tiene crédito disponible
+    and json_query(tracks.event_data, "$.domain_id") = '"MLB-CARS_AND_VANS"' --> Visitas a VIP de cars and vans
+    and json_query(tracks.event_data, "$.category_id") in ('"MLB1744"', '"MLB1743"') --> Categoria Motors Autos y Camionetas
+),
+--SIMULACIONES, SOLO USUARIOS B2C
+SIMULACIONES as (
+
+
+   select
+      CAST(user_timestamp AS TIMESTAMP) AS user_timestamp
+    , cast( ds as date) AS date_str
+    , tracks.path AS path
+    , usr.uid AS uid
+    , REGEXP_REPLACE(json_extract(tracks.event_data, "$.bank"),'"','') AS bank_id
+    , tracks.usr.user_id AS cus_cust_id
+    , JSON_EXTRACT(event_data, '$.seller_id') AS cus_cust_id_sel
+    , REGEXP_SUBSTR(JSON_EXTRACT(event_data, '$.item_id'), '[0-9]+')  AS ite_item_id
+    , event_data AS event_data
+    , platform.fragment AS fragment
+    , platform.http.http_referer AS http_referer
+    , (SELECT MAX(platform.http.utm.map[SAFE_OFFSET(0)].value) FROM UNNEST(tracks.platform.http.utm.map) AS ITE_ITEM_ATTRIBUTES WHERE platform.http.utm.map[SAFE_OFFSET(0)].key = 'utm_campaign') AS utm_campaign
+    , device.platform AS device_platform
+    , CRD_PROP_CREATION_DATE_ID
+    , geo
+    , platform
+
+
+    from `meli-bi-data.MELIDATA.TRACKS` as tracks
+    inner join  listado_encendido on  CAST(listado_encendido.cus_cust_id AS STRING) = tracks.usr.user_id
+    where tracks.ds >= <FECHA_DESDE>
+    and tracks.site = "MLB"
+    and tracks.path = "/vis_credits/simulator"
+    and tracks.type = "view"
+    AND 'test_user' NOT IN UNNEST(usr.user_tags) 
+    and tracks.usr.user_id is not null --> Usuario loggueado
+    and tracks.application.business = 'mercadolibre' --> Solamente accesos a la VIP de mercadolibre
+    and tracks.device.platform in ('/web/desktop', '/web/mobile', '/mobile/ios', '/mobile/android') --> Plataformas en las que queremos ver el comportamiento
+    and json_query(tracks.event_data, "$.category_id") in ('"MLB1744"', '"MLB1743"') --> Categoria Motors Autos y Camionetas
+),
+--CONGRATS, SOLO USUARIOS B2C
+CONGRATS as (
+
+   select
+      CAST(user_timestamp AS TIMESTAMP) AS user_timestamp
+    , cast( ds as date) AS date_str
+    , tracks.path AS path
+    , usr.uid AS uid
+    , REGEXP_REPLACE(json_extract(tracks.event_data, "$.bank"),'"','') AS bank_id
+    , tracks.usr.user_id AS cus_cust_id
+    , JSON_EXTRACT(event_data, '$.seller_id') AS cus_cust_id_sel
+    , REGEXP_SUBSTR(JSON_EXTRACT(event_data, '$.item_id'), '[0-9]+')  AS ite_item_id
+    , event_data AS event_data
+    , platform.fragment AS fragment
+    , platform.http.http_referer AS http_referer
+    , (SELECT MAX(platform.http.utm.map[SAFE_OFFSET(0)].value) FROM UNNEST(tracks.platform.http.utm.map) AS ITE_ITEM_ATTRIBUTES WHERE platform.http.utm.map[SAFE_OFFSET(0)].key = 'utm_campaign') AS utm_campaign
+    , device.platform AS device_platform
+    , CRD_PROP_CREATION_DATE_ID
+    , geo
+    , platform
+
+
+    from `meli-bi-data.MELIDATA.TRACKS` as tracks
+    inner join  listado_encendido on  CAST(listado_encendido.cus_cust_id AS STRING) = tracks.usr.user_id
+    where tracks.ds >= <FECHA_DESDE>
+    and tracks.site = "MLB"
+    and tracks.path = "/vis_credits/congrats"
+    and tracks.type = "view"
+    AND 'test_user' NOT IN UNNEST(usr.user_tags) 
+    and tracks.usr.user_id is not null --> Usuario loggueado
+    and tracks.application.business = 'mercadolibre' --> Solamente accesos a la VIP de mercadolibre
+    and tracks.device.platform in ('/web/desktop', '/web/mobile', '/mobile/ios', '/mobile/android') --> Plataformas en las que queremos ver el comportamiento
+    and json_query(tracks.event_data, "$.category_id") in ('"MLB1744"', '"MLB1743"') --> Categoria Motors Autos y Camionetas
+    and json_extract_scalar(tracks.event_data, "$.congrats_status") = 'APPROVED'
+),
+--CONTACTS, SOLO USUARIOS B2C
+CONTACTS as (
+
+  select
+      CAST(user_timestamp AS TIMESTAMP) AS user_timestamp
+    , cast( ds as date) AS date_str
+    , tracks.path AS path
+    , usr.uid AS uid
+    , REGEXP_REPLACE(json_extract(tracks.event_data, "$.bank"),'"','') AS bank_id
+    , tracks.usr.user_id AS cus_cust_id
+    , JSON_EXTRACT(event_data, '$.seller_id') AS cus_cust_id_sel
+    , REGEXP_SUBSTR(JSON_EXTRACT(event_data, '$.item_id'), '[0-9]+')  AS ite_item_id
+    , event_data AS event_data
+    , platform.fragment AS fragment
+    , platform.http.http_referer AS http_referer
+    , (SELECT MAX(platform.http.utm.map[SAFE_OFFSET(0)].value) FROM UNNEST(tracks.platform.http.utm.map) AS ITE_ITEM_ATTRIBUTES WHERE platform.http.utm.map[SAFE_OFFSET(0)].key = 'utm_campaign') AS utm_campaign
+    , device.platform AS device_platform
+    , CRD_PROP_CREATION_DATE_ID
+    , geo
+    , platform
+
+
+    from `meli-bi-data.MELIDATA.TRACKS` as tracks
+    inner join  listado_encendido on  CAST(listado_encendido.cus_cust_id AS STRING) = tracks.usr.user_id
+    where tracks.ds >= <FECHA_DESDE>
+    and tracks.site = "MLB"
+    and tracks.path in ( "/vis_credits/congrats/whatsapp_intention"
+                    ,"/vis_credits/congrats/contact_intention"
+                    ,"/vis_credits/congrats/call_intention"
+                    ,'/vip/contact_whatsapp'
+                    -- ,'/vip/show_phone'
+                    ,'/vip/call_seller'
+                    ,'/vip/contact_seller'
+                   ) 
+   
+    AND 'test_user' NOT IN UNNEST(usr.user_tags) 
+    and tracks.usr.user_id is not null --> Usuario loggueado
+    and tracks.application.business = 'mercadolibre' --> Solamente accesos a la VIP de mercadolibre
+    and tracks.device.platform in ('/web/desktop', '/web/mobile', '/mobile/ios', '/mobile/android') --> Plataformas en las que queremos ver el comportamiento
+    and json_query(tracks.event_data, "$.category_id") in ('"MLB1744"', '"MLB1743"') --> Categoria Motors Autos y Camionetas
+),
+--DEALERTOOL, SOLO USUARIOS B2C
+DEALERTOOL as (
+
+  select
+      CAST(user_timestamp AS TIMESTAMP) AS user_timestamp
+    , cast( ds as date) AS date_str
+    , tracks.path AS path
+    , usr.uid AS uid
+    , REGEXP_REPLACE(json_extract(tracks.event_data, "$.bank"),'"','') AS bank_id
+    , tracks.usr.user_id AS cus_cust_id
+    , JSON_EXTRACT(event_data, '$.seller_id') AS cus_cust_id_sel
+    , REGEXP_SUBSTR(JSON_EXTRACT(event_data, '$.item_id'), '[0-9]+')  AS ite_item_id
+    , event_data AS event_data
+    , platform.fragment AS fragment
+    , platform.http.http_referer AS http_referer
+    , (SELECT MAX(platform.http.utm.map[SAFE_OFFSET(0)].value) FROM UNNEST(tracks.platform.http.utm.map) AS ITE_ITEM_ATTRIBUTES WHERE platform.http.utm.map[SAFE_OFFSET(0)].key = 'utm_campaign') AS utm_campaign
+    , device.platform AS device_platform
+    , CRD_PROP_CREATION_DATE_ID
+    , geo
+    , platform
+
+    from
+    `meli-bi-data.MELIDATA.TRACKS` as tracks
+    inner join  listado_encendido on  CAST(listado_encendido.cus_cust_id AS STRING) = JSON_EXTRACT(event_data, '$.buyer_id')
+    where tracks.ds >= <FECHA_DESDE>
+    and tracks.site = "MLB"
+    and tracks.path in ('/vis/dealertool/simulator',
+    '/vis/dealertool/simulator/next_step',
+    '/vis/dealertool/preformalization',
+    '/vis/dealertool/preformalization/next_step',
+    '/vis/dealertool/formalization',
+    '/vis/dealertool/formalization/next_step')
+    
+    AND 'test_user' NOT IN UNNEST(usr.user_tags)
+    and tracks.usr.user_id is not null --> Usuario loggueado
+    and JSON_EXTRACT(event_data, '$.buyer_id') is not null
+)
+
+, UNIFICACION AS (
+SELECT 
+    user_timestamp
+  , date_str
+  , path
+  , uid
+  , (CASE WHEN LOWER(bank_id) IN ('mercado crédito','mercado_credito') THEN 'mercado credito'
+          ELSE LOWER(bank_id) END) AS bank_id
+  , cus_cust_id
+  , cus_cust_id_sel
+  , ite_item_id
+  , event_data
+  , fragment
+  , http_referer
+  , utm_campaign
+  , device_platform
+  , CRD_PROP_CREATION_DATE_ID
+  , geo
+  , platform
+
+FROM VISITAS_VIP
+
+UNION ALL
+SELECT
+    user_timestamp
+  , date_str
+  , path
+  , uid
+  , (CASE WHEN LOWER(bank_id) IN ('mercado crédito','mercado_credito') THEN 'mercado credito'
+          ELSE LOWER(bank_id) END) AS bank_id
+  , cus_cust_id
+  , cus_cust_id_sel
+  , ite_item_id
+  , event_data
+  , fragment
+  , http_referer
+  , utm_campaign
+  , device_platform
+  , CRD_PROP_CREATION_DATE_ID
+  , geo
+  , platform
+
+FROM SIMULACIONES
+
+UNION ALL
+SELECT
+    user_timestamp
+  , date_str
+  , path
+  , uid
+  , (CASE WHEN LOWER(bank_id) IN ('mercado crédito','mercado_credito') THEN 'mercado credito'
+          ELSE LOWER(bank_id) END) AS bank_id
+  , cus_cust_id
+  , cus_cust_id_sel
+  , ite_item_id
+  , event_data
+  , fragment
+  , http_referer
+  , utm_campaign
+  , device_platform
+  , CRD_PROP_CREATION_DATE_ID
+  , geo
+  , platform
+
+FROM CONGRATS
+
+UNION ALL
+
+SELECT
+    user_timestamp
+  , date_str
+  , path
+  , uid
+  , (CASE WHEN LOWER(bank_id) IN ('mercado crédito','mercado_credito') THEN 'mercado credito'
+          ELSE LOWER(bank_id) END) AS bank_id
+  , cus_cust_id
+  , cus_cust_id_sel
+  , ite_item_id
+  , event_data
+  , fragment
+  , http_referer
+  , utm_campaign
+  , device_platform
+  , CRD_PROP_CREATION_DATE_ID
+  , geo
+  , platform
+
+FROM CONTACTS 
+
+UNION ALL
+SELECT
+    user_timestamp
+  , date_str
+  , path
+  , uid
+  , (CASE WHEN LOWER(bank_id) IN ('mercado crédito','mercado_credito') THEN 'mercado credito'
+          ELSE LOWER(bank_id) END) AS bank_id
+  , cus_cust_id
+  , cus_cust_id_sel
+  , ite_item_id
+  , event_data
+  , fragment
+  , http_referer
+  , utm_campaign
+  , device_platform
+  , CRD_PROP_CREATION_DATE_ID
+  , geo
+  , platform
+
+FROM DEALERTOOL 
+
+)
+
+SELECT * 
+    -- , FIRST_VALUE(fragment IGNORE NULLS) OVER (PARTITION BY uid ORDER BY CAST(user_timestamp AS TIMESTAMP)) AS FRAGMENT2
+    -- , FIRST_VALUE(http_referer IGNORE NULLS) OVER (PARTITION BY uid ORDER BY CAST(user_timestamp AS TIMESTAMP)) AS http_referer2
+    -- , FIRST_VALUE(utm_campaign IGNORE NULLS) OVER (PARTITION BY uid ORDER BY CAST(user_timestamp AS TIMESTAMP)) AS utm_campaign2
+
+FROM UNIFICACION
+;
