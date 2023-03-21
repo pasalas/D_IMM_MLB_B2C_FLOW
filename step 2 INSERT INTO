@@ -52,7 +52,7 @@ VISITAS_VIP as (
     and tracks.application.business = 'mercadolibre' --> Solamente accesos a la VIP de mercadolibre
     and tracks.device.platform in ('/web/desktop', '/web/mobile', '/mobile/ios', '/mobile/android') --> Plataformas en las que queremos ver el comportamiento
     and JSON_EXTRACT(event_data, '$.vertical') = '"motors"'
-    and json_extract(tracks.event_data, "$.available_consumer_credit") = 'true' --> Tiene crédito disponible
+																											 
     and json_query(tracks.event_data, "$.domain_id") = '"MLB-CARS_AND_VANS"' --> Visitas a VIP de cars and vans
     and json_query(tracks.event_data, "$.category_id") in ('"MLB1744"', '"MLB1743"') --> Categoria Motors Autos y Camionetas
 ),
